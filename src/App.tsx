@@ -1,26 +1,72 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React, { useState, useEffect } from 'react';
 
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+import Canvas from './components/Canvas';
+import LossPlot from './components/LossPlot_v3';
+import LinearRegressionModel from './model/LinearRegressionModel';
+
+import './App.scss';
+
+const WIDTH = 400;
+const HEIGHT = 400;
+const LINE_POINT_STEP = 5;
+
+const predictedInput = Array.from({ length: WIDTH / LINE_POINT_STEP + 1 })
+    .map((v, i) => i * LINE_POINT_STEP);
+
+const model = new LinearRegressionModel(WIDTH, HEIGHT);
+
+export default () => {
+    const [points, changePoints] = useState([]);
+    const [curvePoints, changeCurvePoints] = useState([]);
+    const [lossHistory, changeLossHistory] = useState<any>([]);
+
+    useEffect(() => {
+        if (points.length > 0) {
+            const input = points.map(({ x }) => x);
+            const output = points.map(({ y }) => y);
+
+            model.train(input, output, async () => {
+                const curvePoints = await model.predict(predictedInput);
+                changeCurvePoints(() => curvePoints);
+                changeLossHistory(() => model.history);
+            });
+        }
+    }, [points]);
+
+    return (
+        <div className="regression-low-level">
+            <div className="regression-low-level__top">
+                <div className="regression-low-level__workarea">
+                    <div className="regression-low-level__canvas">
+                        <Canvas
+                            width={WIDTH}
+                            height={HEIGHT}
+                            points={points}
+                            curvePoints={curvePoints}
+                            changePoints={changePoints}
+                        />
+                    </div>
+                    <div className="regression-low-level__toolbar">
+                        <button
+                            className="btn btn-red"
+                            onClick={() => model.stop()}>Stop
+                        </button>
+                        <button
+                            className="btn btn-yellow"
+                            onClick={() => {
+                                model.stop();
+                                changePoints(() => []);
+                                changeCurvePoints(() => []);
+                            }}>Clear
+                        </button>
+                    </div>
+                </div>
+                <div className="regression-low-level__loss">
+                    <LossPlot
+                        loss={lossHistory}/>
+                </div>
+
+            </div>
+        </div>
+    )
 }
-
-export default App;
